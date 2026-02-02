@@ -1,5 +1,6 @@
 import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css'; // Estilos obligatorios de Leaflet
+import { RouteLayer } from './RouteLayer';
 
 export const MapView = () => {
   // Coordenadas iniciales (Centro de carmona por ejemplo)
@@ -16,6 +17,9 @@ export const MapView = () => {
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
+
+        <RouteLayer />
+
         </MapContainer>
     );
 };
