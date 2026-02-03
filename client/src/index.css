@@ -2,25 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Reglas globales para PelicanTracker */
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
 html, body, #root {
-  height: 100%;     /* Vital para que el mapa llene la pantalla */
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden; /* Evita barras de scroll molestas */
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
 }
 
-/* Animación suave para cuando abres las cards */
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fade-in 0.3s ease-out forwards;
+    animation: fade-in 0.3s ease-out forwards;
 }
