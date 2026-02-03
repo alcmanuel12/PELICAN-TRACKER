@@ -40,3 +40,13 @@ Desktop.ini
 
 # --- Testing ---
 coverage/
+
+
+
+# Ignorar dependencias del servidor
+server/node_modules
+server/npm-debug.log
+
+# Ignorar variables de entorno (claves secretas)
+server/.env
+.env

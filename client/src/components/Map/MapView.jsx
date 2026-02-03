@@ -2,6 +2,7 @@ import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { RouteLayer } from './RouteLayer';
 import { CustomZoomControl } from './CustomZoomControl';
+import { BusMarker } from './BusMarker';
 
 export const MapView = ({ setMapInstance }) => {
     const position = [37.4713, -5.6418];
@@ -20,6 +21,7 @@ export const MapView = ({ setMapInstance }) => {
             />
 
             <RouteLayer />
+            <BusMarker />
             <CustomZoomControl />
         </MapContainer>
     );
