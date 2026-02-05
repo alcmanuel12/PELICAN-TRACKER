@@ -1,22 +1,22 @@
 import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import { GlassCard } from '../UI/GlassCard'; // Reutilizamos tu diseño bonito
-import { MapPin, Navigation, Clock } from 'lucide-react';
+import { GlassCard } from '../UI/GlassCard'; 
+// 1. AÑADIDO: Importamos el icono LogOut
+import { MapPin, Navigation, LogOut } from 'lucide-react';
 
-export const DriverView = () => {
+// 2. AÑADIDO: Recibimos la función { onLogout } como prop
+export const DriverView = ({ onLogout }) => {
   const [socket, setSocket] = useState(null);
   const [status, setStatus] = useState("Conectando...");
 
-  // Las paradas clave donde el conductor debe fichar
   const checkpoints = [
-    { id: 2, name: "Plaza de San Fernando", time: "Salida" }, // ID coincide con routeData
+    { id: 2, name: "Plaza de San Fernando", time: "Salida" },
     { id: 8, name: "Hytasa", time: "+15 min" },
     { id: 17, name: "Cibeles", time: "+30 min" },
     { id: 22, name: "San Antón", time: "+40 min" }
   ];
 
   useEffect(() => {
-    // Conexión al socket solo para enviar datos
     const newSocket = io('http://localhost:3000');
     setSocket(newSocket);
     setStatus("🟢 En línea");
@@ -27,11 +27,9 @@ export const DriverView = () => {
   const handleArrival = (stopId, stopName) => {
     if (!socket) return;
     
-    // ENVIAMOS LA SEÑAL AL SERVIDOR
     console.log(`Llegada confirmada a: ${stopName}`);
     socket.emit('driverUpdate', { stopId }); 
 
-    // Feedback visual (vibración si es móvil)
     if (navigator.vibrate) navigator.vibrate(200);
     alert(`✅ Confirmada llegada a: ${stopName}`);
   };
@@ -39,8 +37,10 @@ export const DriverView = () => {
   return (
     <div className="min-h-screen bg-slate-800 p-6 flex flex-col items-center gap-6">
       
-      {/* Encabezado */}
+      {/* --- ENCABEZADO --- */}
       <div className="w-full max-w-md bg-slate-900/50 p-4 rounded-2xl border border-slate-700 flex justify-between items-center text-white">
+        
+        {/* Lado Izquierdo: Título y Estado */}
         <div className="flex items-center gap-3">
           <div className="bg-blue-600 p-2 rounded-lg">
             <Navigation size={24} />
@@ -50,10 +50,19 @@ export const DriverView = () => {
             <p className="text-xs text-slate-400">{status}</p>
           </div>
         </div>
-        <Clock size={24} className="text-slate-400" />
+
+        {/* 3. Lado Derecho: BOTÓN DE SALIR (Reemplaza al reloj) */}
+        <button 
+          onClick={onLogout}
+          className="bg-red-500/20 hover:bg-red-600 text-red-400 hover:text-white p-2 rounded-lg transition-all border border-red-500/30 flex flex-col items-center justify-center"
+          title="Cerrar Sesión"
+        >
+          <LogOut size={20} />
+        </button>
+
       </div>
 
-      {/* Botonera de Control */}
+      {/* --- BOTONERA DE CONTROL (Se mantiene igual) --- */}
       <div className="w-full max-w-md grid gap-4">
         {checkpoints.map((stop) => (
           <button

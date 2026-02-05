@@ -4,8 +4,9 @@ import { RouteLayer } from './RouteLayer';
 import { CustomZoomControl } from './CustomZoomControl';
 import { BusMarker } from './BusMarker';
 
-export const MapView = ({ setMapInstance }) => {
-    const position = [37.4713, -5.6418];
+// Recibimos darkMode como prop
+export const MapView = ({ darkMode }) => {
+    const position = [37.4713, -5.6418]; // Coordenadas de Carmona
 
     return (
         <MapContainer
@@ -15,10 +16,20 @@ export const MapView = ({ setMapInstance }) => {
             zoomControl={false}
             className="relative"
         >
-            <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                attribution='&copy; OpenStreetMap'
-            />
+            {/* LÓGICA DE AZULEJOS (TILES) */}
+            {darkMode ? (
+                // MAPA OSCURO (Dark Matter)
+                <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                />
+            ) : (
+                // MAPA CLARO (Voyager - El que tenías)
+                <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                />
+            )}
 
             <RouteLayer />
             <BusMarker />
