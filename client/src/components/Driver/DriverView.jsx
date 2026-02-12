@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import { GlassCard } from '../UI/GlassCard'; 
-// 1. AÑADIDO: Importamos el icono LogOut
 import { MapPin, Navigation, LogOut } from 'lucide-react';
 
 // 2. AÑADIDO: Recibimos la función { onLogout } como prop
@@ -21,6 +20,8 @@ export const DriverView = ({ onLogout }) => {
     setSocket(newSocket);
     setStatus("🟢 En línea");
 
+    newSocket.emit('driverJoin');
+
     return () => newSocket.disconnect();
   }, []);
 
@@ -28,7 +29,8 @@ export const DriverView = ({ onLogout }) => {
     if (!socket) return;
     
     console.log(`Llegada confirmada a: ${stopName}`);
-    socket.emit('driverUpdate', { stopId }); 
+    
+    socket.emit('driverUpdate', { stopId, stopName }); 
 
     if (navigator.vibrate) navigator.vibrate(200);
     alert(`✅ Confirmada llegada a: ${stopName}`);

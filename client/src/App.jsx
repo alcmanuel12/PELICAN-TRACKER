@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'; // <--- Faltaba Navigate aquí
-import Home from "./components/Home"; // Asegúrate de que esta ruta sea correcta
-import { LoginView } from './components/Driver/LoginView'; // Asegúrate de que esta ruta sea correcta
-import { DriverView } from './components/Driver/DriverView'; // Asegúrate de que esta ruta sea correcta
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Home from "./components/Home";
+import { LoginView } from './components/Driver/LoginView';
+import { DriverView } from './components/Driver/DriverView';
+// 1. IMPORTAMOS EL NUEVO DASHBOARD AQUÍ 👇
+import { AdminDashboard } from './components/Admin/AdminDashboard'; 
 
-// --- COMPONENTE PROTECTED ROUTE (ESTO FALTABA) ---
-// Este componente actúa como un portero de discoteca.
-// Si no tienes permiso (isAllowed), te manda a casa (Navigate to="/").
+// --- COMPONENTE PROTECTED ROUTE ---
 const ProtectedRoute = ({ isAllowed, children }) => {
   if (!isAllowed) {
     return <Navigate to="/" replace />;
@@ -17,9 +17,7 @@ const ProtectedRoute = ({ isAllowed, children }) => {
 function App() {
   // 1. ESTADO DE USUARIO
   const [user, setUser] = useState(() => {
-    // Intentamos recuperar la sesión guardada
     const savedUser = localStorage.getItem('pelicanUser');
-    // Si hay error al parsear JSON (a veces pasa), devolvemos null
     try {
       return savedUser ? JSON.parse(savedUser) : null;
     } catch (e) {
@@ -27,7 +25,7 @@ function App() {
     }
   });
 
-  // 2. FUNCIÓN DE LOGIN
+  // 2. LOGIN
   const handleLogin = async (username, password) => {
     try {
       const response = await fetch('http://localhost:3000/api/login', {
@@ -82,21 +80,14 @@ function App() {
           } 
         />
 
-        {/* RUTA ADMIN (Protegida) */}
+        {/* RUTA ADMIN (AQUÍ ESTÁ EL CAMBIO IMPORTANTE 🛠️) */}
+        {/* Antes tenías un <div> simple, ahora ponemos el componente AdminDashboard */}
         <Route 
           path="/admin" 
           element={
             <ProtectedRoute isAllowed={!!user && user.role === 'admin'}>
-              <div className="p-10 text-white bg-slate-800 h-screen">
-                <h1 className="text-3xl font-bold">Panel de Administrador 👮‍♂️</h1>
-                <p>Bienvenido, {user?.name}</p>
-                <button 
-                  onClick={handleLogout} 
-                  className="mt-4 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition-colors"
-                >
-                  Cerrar Sesión
-                </button>
-              </div>
+               {/* 👇 AQUÍ CONECTAMOS LA TORRE DE CONTROL */}
+              <AdminDashboard user={user} onLogout={handleLogout} />
             </ProtectedRoute>
           } 
         />
