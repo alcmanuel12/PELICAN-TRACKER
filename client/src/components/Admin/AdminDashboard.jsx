@@ -224,7 +224,7 @@ export const AdminDashboard = ({ user, onLogout }) => {
                         {alertMsg && (
                             <div className="space-y-2">
                                 <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Vista Previa (Usuario):</p>
-                                <div className={`p-4 rounded-lg shadow-lg border-l-4 flex gap-3 max-w-sm mx-auto transform rotate-1 bg-white text-slate-800 ${
+                                <div className={`p-4 rounded-lg shadow-lg border-l-4 flex gap-3 max-w-sm mx-auto bg-white text-slate-800 ${
                                     alertType === 'warning' ? 'border-yellow-500' : 'border-blue-500'
                                 }`}>
                                     <AlertTriangle className={`shrink-0 ${

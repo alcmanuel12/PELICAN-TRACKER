@@ -3,6 +3,8 @@ import 'leaflet/dist/leaflet.css';
 import { RouteLayer } from './RouteLayer';
 import { CustomZoomControl } from './CustomZoomControl';
 import { BusMarker } from './BusMarker';
+// 👇 IMPORTAMOS EL NUEVO COMPONENTE
+import { UserLocationMarker } from './UserLocationMarker'; 
 
 // Recibimos darkMode como prop
 export const MapView = ({ darkMode }) => {
@@ -24,7 +26,7 @@ export const MapView = ({ darkMode }) => {
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 />
             ) : (
-                // MAPA CLARO (Voyager - El que tenías)
+                // MAPA CLARO (Voyager)
                 <TileLayer
                     url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
@@ -33,6 +35,9 @@ export const MapView = ({ darkMode }) => {
 
             <RouteLayer />
             <BusMarker />
+            
+            <UserLocationMarker />
+            
             <CustomZoomControl />
         </MapContainer>
     );
