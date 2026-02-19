@@ -113,6 +113,23 @@ io.on('connection', (socket) => {
         io.emit('broadcastClearAlert');
     });
 
+    // --- D. CHAT INTERNO (ADMIN - CONDUCTOR) ---
+    
+    // Escuchamos cuando alguien envía un mensaje
+    socket.on('sendChatMessage', (messageData) => {
+        console.log('💬 Nuevo mensaje de chat:', messageData);
+        
+        // Le añadimos la hora exacta en la que el servidor recibe el mensaje
+        const messageWithTime = {
+            ...messageData,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            id: Date.now() // Un ID único para que React no se queje al listar
+        };
+
+        // Emitimos el mensaje a TODOS los conectados (Admins y Conductores)
+        io.emit('receiveChatMessage', messageWithTime);
+    });
+
     // --- C. DESCONEXIÓN ---
     socket.on('disconnect', () => {
         console.log('❌ Usuario desconectado');

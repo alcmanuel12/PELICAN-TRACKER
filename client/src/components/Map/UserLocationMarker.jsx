@@ -75,13 +75,13 @@ export const UserLocationMarker = () => {
                 onDoubleClick={preventPropagation}
                 onMouseDown={preventPropagation}
             >
-                <button 
+                <button
                     onClick={handleLocate}
                     disabled={isTracking}
-                    className={`p-3 rounded-xl shadow-lg transition-all backdrop-blur-md border border-gray-200 ${
+                    className={`p-3 rounded-full shadow-lg transition-all flex items-center justify-center ${
                         isTracking 
-                            ? 'bg-blue-100 text-blue-600 animate-pulse' 
-                            : 'bg-white/80 text-slate-600 hover:bg-white active:bg-gray-200'
+                            ? 'bg-blue-700 text-white animate-pulse' 
+                            : 'bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700'
                     }`}
                     title="Mi Ubicación"
                 >

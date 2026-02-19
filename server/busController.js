@@ -1,19 +1,18 @@
 const { FULL_ROUTE } = require('./data/route');
 const { SCHEDULE } = require('./data/schedule');
 
-// Configuración
-const TICK_RATE = 1000; 
-const TOTAL_LOOP_MINUTES = 45; 
+
+const TICK_RATE = 1000;
+const TOTAL_LOOP_MINUTES = 45;
 
 // Estado interno del bus (Minuto 0 a 45)
-let currentVirtualMinute = 0; 
+let currentVirtualMinute = 0;
 
-// 1. FUNCIÓN QUE CALCULA DÓNDE ESTAMOS
 const calculateBusPosition = () => {
-    currentVirtualMinute += 0.05; 
+    currentVirtualMinute += 0.05;
     
     if (currentVirtualMinute >= TOTAL_LOOP_MINUTES) {
-        currentVirtualMinute = 0; 
+        currentVirtualMinute = 0;
     }
 
     let activeSegment = null;
@@ -51,7 +50,6 @@ const calculateBusPosition = () => {
     return FULL_ROUTE[currentPointIndex];
 };
 
-// 2. NUEVA FUNCIÓN: Actualizacion de ubicacion manual del conductor
 const updateSimulationTimeByStopId = (stopId) => {
     const targetStop = SCHEDULE.find(s => {
 
@@ -64,13 +62,10 @@ const updateSimulationTimeByStopId = (stopId) => {
 
     if (targetStop) {
         console.log(`👨‍✈️ Conductor confirma: ${targetStop.name}. Saltando al minuto ${targetStop.timeOffset}`);
-        
         currentVirtualMinute = targetStop.timeOffset + 0.1;
-        
         return true;
     }
     return false;
 };
 
-// Exportamos ambas funciones
 module.exports = { calculateBusPosition, updateSimulationTimeByStopId };

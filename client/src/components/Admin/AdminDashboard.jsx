@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Users, Clock, MapPin, AlertTriangle, LogOut, Activity, Bell, Send, LayoutDashboard, Trash2 } from 'lucide-react';
 import io from 'socket.io-client';
-
+import { ChatPanel } from "../UI/Cards/ChatPanel";
 export const AdminDashboard = ({ user, onLogout }) => {
     
     // --- ESTADOS GENERALES ---
@@ -56,7 +56,8 @@ export const AdminDashboard = ({ user, onLogout }) => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col">
+        // Le añadimos 'relative' al contenedor principal para que el chat flote correctamente
+        <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col relative overflow-hidden">
             
             {/* ENCABEZADO */}
             <header className="bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center sticky top-0 z-50">
@@ -169,7 +170,6 @@ export const AdminDashboard = ({ user, onLogout }) => {
                                 <Bell size={150} />
                             </div>
 
-                            {/* BOTONES DE TIPO (SOLO INFO Y AVISO) */}
                             <div className="flex gap-4 mb-4">
                                 <button 
                                     onClick={() => setAlertType('info')}
@@ -183,7 +183,6 @@ export const AdminDashboard = ({ user, onLogout }) => {
                                 >
                                     ⚠️ Aviso
                                 </button>
-                                {/* BOTÓN DE PELIGRO ELIMINADO 🗑️ */}
                             </div>
 
                             <textarea 
@@ -220,7 +219,7 @@ export const AdminDashboard = ({ user, onLogout }) => {
                             </div>
                         </div>
 
-                        {/* VISTA PREVIA (Sincronizada con el mapa del usuario) */}
+                        {/* VISTA PREVIA */}
                         {alertMsg && (
                             <div className="space-y-2">
                                 <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Vista Previa (Usuario):</p>
@@ -241,8 +240,11 @@ export const AdminDashboard = ({ user, onLogout }) => {
                         )}
                     </div>
                 )}
-
             </main>
+
+            {/* 👇 AQUÍ AÑADIMOS EL PANEL DE CHAT PARA EL ADMINISTRADOR */}
+            <ChatPanel userName={user?.name || "Central de Control"} role="admin" />
+
         </div>
     );
 };

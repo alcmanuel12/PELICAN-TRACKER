@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import { GlassCard } from '../UI/GlassCard'; 
 import { MapPin, Navigation, LogOut } from 'lucide-react';
+// 👇 Importamos el componente del Chat
+import { ChatPanel } from "../UI/Cards/ChatPanel";
 
-// 2. AÑADIDO: Recibimos la función { onLogout } como prop
 export const DriverView = ({ onLogout }) => {
   const [socket, setSocket] = useState(null);
   const [status, setStatus] = useState("Conectando...");
@@ -37,10 +38,11 @@ export const DriverView = ({ onLogout }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-800 p-6 flex flex-col items-center gap-6">
+    // 👇 Añadimos 'relative' y 'overflow-hidden' para que el chat flote sobre esta pantalla
+    <div className="min-h-screen bg-slate-800 p-6 flex flex-col items-center gap-6 relative overflow-hidden">
       
       {/* --- ENCABEZADO --- */}
-      <div className="w-full max-w-md bg-slate-900/50 p-4 rounded-2xl border border-slate-700 flex justify-between items-center text-white">
+      <div className="w-full max-w-md bg-slate-900/50 p-4 rounded-2xl border border-slate-700 flex justify-between items-center text-white z-10">
         
         {/* Lado Izquierdo: Título y Estado */}
         <div className="flex items-center gap-3">
@@ -53,7 +55,7 @@ export const DriverView = ({ onLogout }) => {
           </div>
         </div>
 
-        {/* 3. Lado Derecho: BOTÓN DE SALIR (Reemplaza al reloj) */}
+        {/* Lado Derecho: BOTÓN DE SALIR */}
         <button 
           onClick={onLogout}
           className="bg-red-500/20 hover:bg-red-600 text-red-400 hover:text-white p-2 rounded-lg transition-all border border-red-500/30 flex flex-col items-center justify-center"
@@ -64,8 +66,8 @@ export const DriverView = ({ onLogout }) => {
 
       </div>
 
-      {/* --- BOTONERA DE CONTROL (Se mantiene igual) --- */}
-      <div className="w-full max-w-md grid gap-4">
+      {/* --- BOTONERA DE CONTROL --- */}
+      <div className="w-full max-w-md grid gap-4 z-10">
         {checkpoints.map((stop) => (
           <button
             key={stop.id}
@@ -89,9 +91,13 @@ export const DriverView = ({ onLogout }) => {
         ))}
       </div>
 
-      <div className="text-slate-500 text-sm mt-auto text-center">
+      <div className="text-slate-500 text-sm mt-auto text-center z-10">
         PelicanTracker v1.0 • Solo uso autorizado
       </div>
+
+      {/* 👇 AQUÍ ESTÁ EL CHAT CONFIGURADO COMO CONDUCTOR */}
+      <ChatPanel userName="Autobús 1" role="driver" />
+
     </div>
   );
 };

@@ -7,7 +7,7 @@ import { BusMarker } from './BusMarker';
 import { UserLocationMarker } from './UserLocationMarker'; 
 
 // Recibimos darkMode como prop
-export const MapView = ({ darkMode }) => {
+export const MapView = ({ darkMode, activeStopId }) => {
     const position = [37.4713, -5.6418]; // Coordenadas de Carmona
 
     return (
@@ -31,9 +31,10 @@ export const MapView = ({ darkMode }) => {
                     url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 />
-            )}
 
-            <RouteLayer />
+                
+            )}
+            <RouteLayer activeStopId={activeStopId} />
             <BusMarker />
             
             <UserLocationMarker />
