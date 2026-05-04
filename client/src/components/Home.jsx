@@ -1,19 +1,26 @@
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import { Settings, MapPin, X } from 'lucide-react';
+import { API_URL } from '../utils/api';
+import { Settings, MapPin, X, Clock } from 'lucide-react';
 
 import { MapView } from './Map/MapView';
 import { StopsListCard } from './UI/Cards/StopsListCard';
 import { SettingsCard } from './UI/Cards/SettingsCard';
+import { ScheduleCard } from './UI/Cards/ScheduleCard';
 import { translations } from '../utils/translations';
 import { ChatPanel } from './UI/Cards/ChatPanel';
 
 export const Home = () => {
-  const [lang, setLang] = useState('es');
-  const [darkMode, setDarkMode] = useState(false);
-  const [fontSize, setFontSize] = useState('md');
+  const [lang, setLang] = useState(() => localStorage.getItem('pelican_lang') || 'es');
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('pelican_dark') === 'true');
+  const [fontSize, setFontSize] = useState(() => localStorage.getItem('pelican_font') || 'md');
+
+  useEffect(() => { localStorage.setItem('pelican_lang', lang); }, [lang]);
+  useEffect(() => { localStorage.setItem('pelican_dark', darkMode); }, [darkMode]);
+  useEffect(() => { localStorage.setItem('pelican_font', fontSize); }, [fontSize]);
   const [showStops, setShowStops] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
   
   const [activeStopId, setActiveStopId] = useState(null);
   const [globalAlert, setGlobalAlert] = useState(null);
@@ -27,11 +34,10 @@ export const Home = () => {
   };
 
   useEffect(() => {
-    const socket = io('http://localhost:3000');
+    const socket = io(API_URL, { withCredentials: true });
 
     socket.on('broadcastAlert', (data) => {
-        console.log("⚠️ ALERTA:", data);
-        setGlobalAlert(data); 
+        setGlobalAlert(data);
     });
 
     socket.on('broadcastClearAlert', () => {
@@ -93,15 +99,26 @@ export const Home = () => {
         </div>
 
         <div className="pointer-events-auto flex flex-col items-start gap-2 max-h-[60vh]">
-          <button
-            onClick={() => setShowStops(!showStops)}
-            className={`p-3 rounded-full shadow-lg transition-transform active:scale-95 flex items-center justify-center ${
-                darkMode ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-500 text-white hover:bg-blue-600'
-            }`}
-            title={t.showStops}
-          >
-            {showStops ? <X size={24} /> : <MapPin size={24} />}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setShowStops(!showStops); setShowSchedule(false); }}
+              className={`p-3 rounded-full shadow-lg transition-transform active:scale-95 flex items-center justify-center ${
+                  darkMode ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-500 text-white hover:bg-blue-600'
+              }`}
+              title={t.showStops}
+            >
+              {showStops ? <X size={24} /> : <MapPin size={24} />}
+            </button>
+            <button
+              onClick={() => { setShowSchedule(!showSchedule); setShowStops(false); }}
+              className={`p-3 rounded-full shadow-lg transition-transform active:scale-95 flex items-center justify-center ${
+                  darkMode ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-500 text-white hover:bg-blue-600'
+              }`}
+              title={t.showSchedule ?? 'Horario'}
+            >
+              {showSchedule ? <X size={24} /> : <Clock size={24} />}
+            </button>
+          </div>
 
           {showStops && (
             <div className="animate-in slide-in-from-bottom-5 duration-300 origin-bottom-left">
@@ -109,6 +126,11 @@ export const Home = () => {
             </div>
           )}
 
+          {showSchedule && (
+            <div className="animate-in slide-in-from-bottom-5 duration-300 origin-bottom-left">
+              <ScheduleCard darkMode={darkMode} t={t} />
+            </div>
+          )}
         </div>
 
       </div>

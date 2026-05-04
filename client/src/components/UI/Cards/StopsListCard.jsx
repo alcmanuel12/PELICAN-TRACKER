@@ -1,26 +1,27 @@
 import { GlassCard } from '../GlassCard';
-import { PARADAS } from '../../../utils/routeData';
-import { MapPin } from 'lucide-react';
+import { MapPin, Loader2 } from 'lucide-react';
+import { useStops } from '../../../context/StopsContext';
 
-// 👇 1. Recibimos onStopClick
 export const StopsListCard = ({ t, onStopClick }) => {
+    const { stops: paradas, loading, error } = useStops();
     const safeT = t || {};
 
-    if (!PARADAS) return <div className="p-4 bg-red-100 text-red-600">Error Data</div>;
     return (
         <GlassCard title={safeT.stops || "PARADAS"} className="w-64 text-[1em]">
             <div className="max-h-60 overflow-y-auto pr-2 scrollbar-hide">
-                {PARADAS.map((parada) => (
+                {loading && (
+                    <div className="flex items-center justify-center gap-2 py-4 text-slate-500 text-sm">
+                        <Loader2 size={16} className="animate-spin" /> Cargando...
+                    </div>
+                )}
+                {error && (
+                    <p className="text-red-500 text-xs text-center py-4">{error}</p>
+                )}
+                {!loading && !error && paradas.map((parada) => (
                     <div
                         key={parada.id}
                         className="flex items-center gap-3 p-2 hover:bg-white/40 rounded-lg transition-colors cursor-pointer group"
-                        onClick={() => {
-                            console.log("Ir a parada:", parada.nombre);
-                            // 👇 2. Ejecutamos la función pasando el ID de la parada
-                            if (onStopClick) {
-                                onStopClick(parada.id);
-                            }
-                        }}
+                        onClick={() => onStopClick?.(parada.id)}
                     >
                         <div className="bg-blue-500/20 p-2 rounded-full text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                             <MapPin size={16} />
@@ -29,7 +30,6 @@ export const StopsListCard = ({ t, onStopClick }) => {
                             {parada.nombre}
                         </span>
                     </div>
-                    
                 ))}
             </div>
         </GlassCard>

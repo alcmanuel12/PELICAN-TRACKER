@@ -352,34 +352,3 @@ export const RUTA_BUS = [
           [37.471097566855036, -5.641668088777095],
           [37.47109616229304, -5.6416652559746865]
         ];
-
-export const PARADAS = [
-  { id: 1, nombre: "Puerta de Sevilla", coords: [37.47117626304576, -5.641579812865416] },
-  { id: 2, nombre: "Plaza de san Fernando", coords: [37.47262097792694, -5.638498400929194] },
-  { id: 3, nombre: "Dolores Quintanilla", coords: [37.47474034797527, -5.636476307072542] },
-  { id: 4, nombre: "Miraflores de Santa Maria", coords: [37.47472878827965, -5.637672159379946] },
-  { id: 5, nombre: "Plazuela del higueral", coords: [37.47654439446991, -5.640185723039394] },
-  { id: 6, nombre: "Santa Ana", coords: [37.47652516035747, -5.642549288331139] },
-  { id: 7, nombre: "Bernardo Enrique Cerezo", coords: [37.47404563942294, -5.6425963405290815] },
-  { id: 8, nombre: "Hytasa", coords: [37.475674154833015, -5.645990281468329] },
-  { id: 9, nombre: "Carretera de Guadajoz", coords: [37.47680428355913, -5.647849022134324] },
-  { id: 10, nombre: "León de San Francisco", coords: [37.47503182101816, -5.648510605278403] },
-  { id: 11, nombre: "Romero1", coords: [37.47400846549665, -5.64988059708682] },
-  { id: 12, nombre: "Romero2", coords: [37.47323942640742, -5.652744708993339] },
-  { id: 13, nombre: "Octavio", coords: [37.47106266732959, -5.652448650005283] },
-  { id: 14, nombre: "Anfiteatro", coords: [37.46978894577593, -5.653491861711217] },
-  { id: 15, nombre: "Anfiteatro2", coords: [37.47029994127368, -5.654496371687543] },
-  { id: 16, nombre: "Tientos", coords: [37.470004800069674, -5.656394726605811] },
-  { id: 17, nombre: "Cibeles", coords: [37.4670626868881, -5.656087910313403] },
-  { id: 18, nombre: "Fuente del alamo", coords: [37.46455004494389, -5.6546565406044635] },
-  { id: 19, nombre: "Urbano X", coords: [37.46163353215192, -5.655678378555649] },
-  { id: 20, nombre: "Ciudad de los niños", coords: [37.4634651123212, -5.652644235256332] },
-  { id: 21, nombre: "Doctor Villa Diaz", coords: [37.46339006315954, -5.649295584256095] },
-  { id: 22, nombre: "San Antón", coords: [37.464276872135315, -5.646408170057043] },
-  { id: 23, nombre: "Almendral", coords: [37.463405000037056, -5.644555170402299] },
-  { id: 24, nombre: "Alfonso X", coords: [37.46490624261861, -5.644575467434777] },
-  { id: 25, nombre: "Paseo de San Antón", coords: [37.46556585255563, -5.645822510387347] },
-  { id: 26, nombre: "Plaza de la constitucion", coords: [37.46723439920176, -5.644487215827354] },
-  { id: 27, nombre: "Anfiteatro", coords: [37.47057733379772, -5.643609766889796] },
-  
-];

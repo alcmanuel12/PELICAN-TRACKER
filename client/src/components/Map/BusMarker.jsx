@@ -2,7 +2,9 @@ import { useEffect, useState, useRef } from 'react';
 import { Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import io from 'socket.io-client';
-import { PARADAS, RUTA_BUS } from '../../utils/routeData';
+import { RUTA_BUS } from '../../utils/routeData';
+import { useStops } from '../../context/StopsContext';
+import { API_URL } from '../../utils/api';
 
 // 1. ICONO MÁS GRANDE Y LIMPIO (CON GIRO SUAVE)
 const busIcon = L.divIcon({
@@ -28,52 +30,64 @@ const busIcon = L.divIcon({
     popupAnchor: [0, -40]    
 });
 
+const getClosestRouteIndex = (lat, lng) => {
+    if (!RUTA_BUS || RUTA_BUS.length === 0) return 0;
+    let minDistance = Infinity;
+    let closestIndex = 0;
+    RUTA_BUS.forEach((coord, index) => {
+        const dist = Math.sqrt(Math.pow(coord[0] - lat, 2) + Math.pow(coord[1] - lng, 2));
+        if (dist < minDistance) { minDistance = dist; closestIndex = index; }
+    });
+    return closestIndex;
+};
+
 export const BusMarker = () => {
-    const [currentIndex, setCurrentIndex] = useState(0); 
+    const [currentIndex, setCurrentIndex] = useState(0);
     const [targetIndex, setTargetIndex] = useState(0);
     const [nextStopName, setNextStopName] = useState("En base");
-    
+    const { stops: paradas } = useStops();
+
     const map = useMap();
     const markerRef = useRef(null);
+    const prevAngleRef = useRef(0);
+    const etaRef = useRef(null); // { etaMs, setAt, targetIdx }
 
-    const getClosestRouteIndex = (lat, lng) => {
-        if (!RUTA_BUS || RUTA_BUS.length === 0) return 0;
-        let minDistance = Infinity;
-        let closestIndex = 0;
-        RUTA_BUS.forEach((coord, index) => {
-            const dist = Math.sqrt(Math.pow(coord[0] - lat, 2) + Math.pow(coord[1] - lng, 2));
-            if (dist < minDistance) {
-                minDistance = dist;
-                closestIndex = index;
-            }
-        });
-        return closestIndex;
-    };
+    // Paradas ordenadas por su posición en la ruta (calculado una vez)
+    const [stopsOnRoute, setStopsOnRoute] = useState([]);
+    useEffect(() => {
+        if (paradas.length === 0) return;
+        const mapped = paradas
+            .map(s => ({ ...s, routeIdx: getClosestRouteIndex(s.coords[0], s.coords[1]) }))
+            .sort((a, b) => a.routeIdx - b.routeIdx);
+        setStopsOnRoute(mapped);
+    }, [paradas]);
 
-    // 2. CÁLCULO DE ÁNGULO CON TU CORRECCIÓN DE 270 GRADOS 📐🔄
     const calculateRotationAngle = (currentPos, nextPos) => {
-        if (!currentPos || !nextPos) return 0;
-        
-        const dy = nextPos[0] - currentPos[0]; 
-        const dx = nextPos[1] - currentPos[1]; 
-        
-        let angleRad = Math.atan2(dy, dx);
-        let angleDeg = angleRad * (180 / Math.PI);
+        if (!currentPos || !nextPos) return prevAngleRef.current;
 
-        // Corrección de 270 grados para el asset de Cloudinary
-        let correctedAngle = angleDeg + 270;
+        const dy = nextPos[0] - currentPos[0];
+        const dx = nextPos[1] - currentPos[1];
+        const raw = -(Math.atan2(dy, dx) * (180 / Math.PI) + 270);
 
-        return -correctedAngle; 
+        // Normaliza al camino más corto para evitar giros de 360°
+        const prev = prevAngleRef.current;
+        const diff = ((raw - prev) % 360 + 540) % 360 - 180;
+        const smooth = prev + diff;
+
+        prevAngleRef.current = smooth;
+        return smooth;
     };
 
     useEffect(() => {
-        const socket = io('http://localhost:3000', { transports: ['websocket', 'polling'] });
+        const socket = io(API_URL, { withCredentials: true, transports: ['websocket', 'polling'] });
 
         socket.on('busUpdate', (data) => {
-            const paradaDestino = PARADAS.find(p => p.id === data.stopId);
+            const paradaDestino = paradas.find(p => p.id === data.stopId);
             if (paradaDestino) {
-                setNextStopName(paradaDestino.nombre);
                 const newTarget = getClosestRouteIndex(paradaDestino.coords[0], paradaDestino.coords[1]);
+                if (data.eta > 0) {
+                    etaRef.current = { etaMs: data.eta, setAt: Date.now(), targetIdx: newTarget };
+                }
                 setTargetIndex(newTarget);
             }
         });
@@ -82,9 +96,17 @@ export const BusMarker = () => {
             socket.off('busUpdate');
             socket.disconnect();
         };
-    }, []);
+    }, [paradas]);
 
-    // 5. MOTOR DE ANIMACIÓN Y ROTACIÓN (CON LOOK-AHEAD) 🚌🔄
+    // Actualiza "Próxima parada" según la posición actual en la ruta
+    useEffect(() => {
+        if (stopsOnRoute.length === 0) return;
+        const next = stopsOnRoute.find(s => s.routeIdx > currentIndex)
+                  ?? stopsOnRoute[0]; // wrap circular
+        if (next) setNextStopName(next.nombre);
+    }, [currentIndex, stopsOnRoute]);
+
+    // MOTOR DE ANIMACIÓN Y ROTACIÓN (CON LOOK-AHEAD)
     useEffect(() => {
         if (currentIndex === targetIndex) return;
 
@@ -106,8 +128,19 @@ export const BusMarker = () => {
             }
         }
 
-        // --- B. AVANCE DE POSICIÓN ---
-        const SPEED_MS = 150; // Velocidad de avance relajada
+        // --- B. VELOCIDAD DINÁMICA POR ETA ---
+        // Si hay un ETA activo, calculamos cuántos ms/paso necesitamos para llegar a tiempo
+        let SPEED_MS = 150;
+        if (etaRef.current && etaRef.current.targetIdx === targetIndex) {
+            const elapsed = Date.now() - etaRef.current.setAt;
+            const remaining = etaRef.current.etaMs - elapsed;
+            const steps = targetIndex >= currentIndex
+                ? targetIndex - currentIndex
+                : RUTA_BUS.length - currentIndex + targetIndex;
+            if (steps > 0 && remaining > 0) {
+                SPEED_MS = Math.max(80, Math.min(remaining / steps, 8000));
+            }
+        }
         const timer = setTimeout(() => {
             setCurrentIndex((prev) => {
                 if (prev < targetIndex) return prev + 1;

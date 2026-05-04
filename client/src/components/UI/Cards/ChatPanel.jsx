@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
+import { API_URL } from '../../../utils/api';
 import { MessageCircle, Send, X } from 'lucide-react';
 
 export const ChatPanel = ({ userName = "Central", role = "admin" }) => {
@@ -9,9 +10,8 @@ export const ChatPanel = ({ userName = "Central", role = "admin" }) => {
     const [socket, setSocket] = useState(null);
     const messagesEndRef = useRef(null);
 
-    // Conectar al socket al cargar el componente
     useEffect(() => {
-        const newSocket = io('http://localhost:3000');
+        const newSocket = io(API_URL, { withCredentials: true });
         setSocket(newSocket);
 
         newSocket.on('receiveChatMessage', (message) => {
@@ -68,7 +68,7 @@ export const ChatPanel = ({ userName = "Central", role = "admin" }) => {
                         
                         {messages.map((msg) => {
                             // Detectamos si el mensaje lo envié yo o la otra persona
-                            const isMe = msg.role === role;
+                            const isMe = msg.sender === userName;
                             
                             return (
                                 <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>

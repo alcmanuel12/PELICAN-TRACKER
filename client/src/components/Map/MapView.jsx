@@ -1,13 +1,12 @@
+import { memo } from 'react';
 import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { RouteLayer } from './RouteLayer';
 import { CustomZoomControl } from './CustomZoomControl';
 import { BusMarker } from './BusMarker';
-// 👇 IMPORTAMOS EL NUEVO COMPONENTE
-import { UserLocationMarker } from './UserLocationMarker'; 
+import { UserLocationMarker } from './UserLocationMarker';
 
-// Recibimos darkMode como prop
-export const MapView = ({ darkMode, activeStopId }) => {
+export const MapView = memo(({ darkMode, activeStopId }) => {
     const position = [37.4713, -5.6418]; // Coordenadas de Carmona
 
     return (
@@ -42,4 +41,4 @@ export const MapView = ({ darkMode, activeStopId }) => {
             <CustomZoomControl />
         </MapContainer>
     );
-};
+});
