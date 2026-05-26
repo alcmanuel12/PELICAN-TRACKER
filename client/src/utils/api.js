@@ -1,6 +1,6 @@
-// En producción el frontend se sirve desde el mismo origen que el backend,
-// por lo que las rutas relativas apuntan automáticamente al servidor correcto.
-// Para desarrollo local, Vite redirige /api → http://localhost:3000 (ver vite.config.js).
+
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 const BASE = '';
 
 const apiFetch = (path, init = {}) =>
