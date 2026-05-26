@@ -1,35 +1,32 @@
 require('dotenv').config();
 
 const express = require('express');
+const helmet = require('helmet');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require("socket.io");
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const User = require('./models/User');
 const Stop = require('./models/Stop');
 const BusState = require('./models/BusState');
 const { SEED_STOPS } = require('./data/seedStops');
+const { createToken, verifyToken, requireAdmin } = require('./utils/auth');
+const { sanitize } = require('./utils/sanitize');
+const { CHECKPOINT_IDS, VALID_ROLES } = require('./data/constants');
 
-const JWT_SECRET = process.env.JWT_SECRET;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
 const app = express();
 const server = http.createServer(app);
 
-// MIDDLEWARE
-app.use(cors({
-    origin: CORS_ORIGIN,
-    methods: ["GET", "POST", "DELETE", "PATCH"],
-    credentials: true
-}));
-app.use(express.json());
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(cors({ origin: CORS_ORIGIN, methods: ["GET", "POST", "DELETE", "PATCH"], credentials: true }));
+app.use(express.json({ limit: '10kb' }));
 app.use(cookieParser());
 
-// Máx 10 intentos de login por IP cada 15 minutos
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 10,
@@ -38,17 +35,14 @@ const loginLimiter = rateLimit({
     message: { success: false, message: 'Demasiados intentos. Espera 15 minutos.' }
 });
 
-// CONEXIÓN MONGODB
 mongoose.connect(process.env.MONGO_URI)
     .then(async () => {
         console.log("🟢 Conectado a MongoDB Atlas");
-
         const count = await Stop.countDocuments();
         if (count === 0) {
             await Stop.insertMany(SEED_STOPS);
             console.log("🌱 Paradas inicializadas en base de datos");
         }
-
         const saved = await BusState.findOne({ date: todayStr() });
         if (saved) {
             simMinTimeMin = saved.simMinTimeMin ?? -Infinity;
@@ -58,30 +52,13 @@ mongoose.connect(process.env.MONGO_URI)
     })
     .catch(err => console.error("🔴 Error conectando a MongoDB:", err));
 
-// RUTAS DE LA API
-app.get('/', (_req, res) => {
-    res.send('Servidor PelicanTracker funcionando 🦅');
-});
-
-// MIDDLEWARE: solo admins con cookie válida
-const requireAdmin = (req, res, next) => {
-    const token = req.cookies?.pelicanToken;
-    if (!token) return res.status(401).json({ message: 'Unauthorized' });
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        if (decoded.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
-        req.user = decoded;
-        next();
-    } catch {
-        res.status(401).json({ message: 'Invalid token' });
-    }
-};
+app.get('/', (_req, res) => res.send('Servidor PelicanTracker funcionando 🦅'));
 
 app.get('/api/me', (req, res) => {
     const token = req.cookies?.pelicanToken;
     if (!token) return res.status(401).json({ message: 'Not authenticated' });
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
+        const decoded = verifyToken(token);
         res.json({ name: decoded.name, role: decoded.role });
     } catch {
         res.status(401).json({ message: 'Invalid token' });
@@ -89,10 +66,7 @@ app.get('/api/me', (req, res) => {
 });
 
 app.post('/api/logout', (_req, res) => {
-    res.clearCookie('pelicanToken', {
-        sameSite: 'strict',
-        secure: process.env.NODE_ENV === 'production'
-    });
+    res.clearCookie('pelicanToken', { sameSite: 'strict', secure: process.env.NODE_ENV === 'production' });
     res.json({ success: true });
 });
 
@@ -107,12 +81,18 @@ app.get('/api/admin/users', requireAdmin, async (_req, res) => {
 
 app.post('/api/admin/users', requireAdmin, async (req, res) => {
     const { username, password, name, role } = req.body;
-    if (!username || !password || !name || !role) {
+    if (!username || !password || !name || !role)
         return res.status(400).json({ message: 'Todos los campos son obligatorios' });
-    }
-    if (typeof password !== 'string' || password.length < 8) {
+    if (typeof username !== 'string' || username.length > 32)
+        return res.status(400).json({ message: 'El nombre de usuario no puede superar 32 caracteres' });
+    if (typeof name !== 'string' || name.length > 64)
+        return res.status(400).json({ message: 'El nombre no puede superar 64 caracteres' });
+    if (!VALID_ROLES.includes(role))
+        return res.status(400).json({ message: 'Rol no válido' });
+    if (typeof password !== 'string' || password.length < 8)
         return res.status(400).json({ message: 'La contraseña debe tener al menos 8 caracteres' });
-    }
+    if (password.length > 128)
+        return res.status(400).json({ message: 'La contraseña no puede superar 128 caracteres' });
     try {
         const hashed = await bcrypt.hash(password, 10);
         const user = new User({ username, password: hashed, name, role });
@@ -126,9 +106,8 @@ app.post('/api/admin/users', requireAdmin, async (req, res) => {
 
 app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
     try {
-        if (req.user.id === req.params.id) {
+        if (req.user.id === req.params.id)
             return res.status(400).json({ message: 'No puedes eliminarte a ti mismo' });
-        }
         await User.findByIdAndDelete(req.params.id);
         res.json({ success: true });
     } catch {
@@ -148,9 +127,13 @@ app.get('/api/stops', async (req, res) => {
 
 app.post('/api/admin/stops', requireAdmin, async (req, res) => {
     const { nombre, coords, isCheckpoint } = req.body;
-    if (!nombre || !Array.isArray(coords) || coords.length !== 2) {
+    if (!nombre || !Array.isArray(coords) || coords.length !== 2)
         return res.status(400).json({ message: 'Nombre y coordenadas [lat, lng] son obligatorios' });
-    }
+    if (typeof nombre !== 'string' || nombre.length > 80)
+        return res.status(400).json({ message: 'El nombre no puede superar 80 caracteres' });
+    const [lat, lng] = coords.map(Number);
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180)
+        return res.status(400).json({ message: 'Coordenadas fuera de rango válido' });
     try {
         const last = await Stop.findOne().sort({ id: -1 });
         const nextId = last ? last.id + 1 : 1;
@@ -163,6 +146,15 @@ app.post('/api/admin/stops', requireAdmin, async (req, res) => {
 
 app.patch('/api/admin/stops/:id', requireAdmin, async (req, res) => {
     const { nombre, coords, isCheckpoint } = req.body;
+    if (nombre !== undefined && (typeof nombre !== 'string' || nombre.length === 0 || nombre.length > 80))
+        return res.status(400).json({ message: 'El nombre debe tener entre 1 y 80 caracteres' });
+    if (coords !== undefined) {
+        if (!Array.isArray(coords) || coords.length !== 2)
+            return res.status(400).json({ message: 'Coordenadas inválidas' });
+        const [lat, lng] = [Number(coords[0]), Number(coords[1])];
+        if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180)
+            return res.status(400).json({ message: 'Coordenadas fuera de rango válido' });
+    }
     try {
         const update = {};
         if (nombre) update.nombre = nombre;
@@ -188,14 +180,19 @@ app.delete('/api/admin/stops/:id', requireAdmin, async (req, res) => {
 
 app.patch('/api/admin/users/:id', requireAdmin, async (req, res) => {
     const { name, role, password } = req.body;
+    if (name !== undefined && (typeof name !== 'string' || name.length === 0 || name.length > 64))
+        return res.status(400).json({ message: 'El nombre debe tener entre 1 y 64 caracteres' });
+    if (role !== undefined && !VALID_ROLES.includes(role))
+        return res.status(400).json({ message: 'Rol no válido' });
     try {
         const update = {};
         if (name) update.name = name;
-        if (role && ['driver', 'admin'].includes(role)) update.role = role;
+        if (role) update.role = role;
         if (password !== undefined) {
-            if (typeof password !== 'string' || password.length < 8) {
+            if (typeof password !== 'string' || password.length < 8)
                 return res.status(400).json({ message: 'La contraseña debe tener al menos 8 caracteres' });
-            }
+            if (password.length > 128)
+                return res.status(400).json({ message: 'La contraseña no puede superar 128 caracteres' });
             update.password = await bcrypt.hash(password, 10);
         }
         const user = await User.findByIdAndUpdate(req.params.id, update, { new: true, select: '-password -__v' });
@@ -210,11 +207,9 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     const { username, password } = req.body;
     try {
         const user = await User.findOne({ username });
-        if (!user) {
+        if (!user)
             return res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
-        }
 
-        // Migración transparente de contraseñas en texto plano
         const isHashed = user.password.startsWith('$2b$') || user.password.startsWith('$2a$');
         let isValid;
         if (isHashed) {
@@ -228,11 +223,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         }
 
         if (isValid) {
-            const token = jwt.sign(
-                { id: user._id, name: user.name, role: user.role },
-                JWT_SECRET,
-                { expiresIn: '8h' }
-            );
+            const token = createToken({ id: user._id, name: user.name, role: user.role });
             res.cookie('pelicanToken', token, {
                 httpOnly: true,
                 sameSite: 'strict',
@@ -249,51 +240,37 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     }
 });
 
-// SOCKET.IO
 const io = new Server(server, {
-    cors: {
-        origin: CORS_ORIGIN,
-        methods: ["GET", "POST"],
-        credentials: true
-    }
+    cors: { origin: CORS_ORIGIN, methods: ["GET", "POST"], credentials: true }
 });
 
-// Helper para parsear cookies del handshake de WebSocket
-const parseCookies = (cookieStr) => {
-    const result = {};
-    (cookieStr || '').split(';').forEach(c => {
-        const [key, ...vals] = c.trim().split('=');
-        if (key) result[decodeURIComponent(key.trim())] = decodeURIComponent(vals.join('='));
-    });
-    return result;
+const extractToken = (cookieStr) => {
+    const match = (cookieStr || '').match(/(?:^|;\s*)pelicanToken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
 };
 
-// Middleware JWT para Socket.IO — lee cookie httpOnly, permite conexiones públicas
 io.use((socket, next) => {
-    const cookies = parseCookies(socket.handshake.headers.cookie);
-    const token = cookies.pelicanToken;
-    if (!token) {
-        socket.user = { role: 'public' };
-        return next();
-    }
+    const token = extractToken(socket.handshake.headers.cookie);
+    if (!token) { socket.user = { role: 'public' }; return next(); }
     try {
-        socket.user = jwt.verify(token, JWT_SECRET);
+        socket.user = verifyToken(token);
         next();
     } catch {
         next(new Error('Invalid token'));
     }
 });
 
-// Sanitización para evitar XSS en mensajes de chat y alertas
-const sanitize = (str) => String(str || '').replace(/[<>&"']/g, c => (
-    { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c]
-));
-
 let connectedDrivers = new Set();
-let liveTrip = null;       // { tripIndex, adjustedTimes, delayMin, checkpointIdx }
-let simMinTimeMin = -Infinity; // tiempo teórico mínimo para el próximo evento de simulación
+let liveTrip = null;
+let simMinTimeMin = -Infinity;
+let lastProcessedIdx = null;
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
+
+const nowDecMinutes = () => {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes() + (n.getSeconds() * 1000 + n.getMilliseconds()) / 60_000;
+};
 
 const persistBusState = async () => {
     try {
@@ -307,19 +284,13 @@ const persistBusState = async () => {
     }
 };
 
-// ─── SIMULACIÓN HORARIA COMPLETA (todas las paradas) ─────────────────────────
-// Checkpoints con sus IDs de BD
-const CHECKPOINT_IDS = [2, 8, 17, 22]; // San Fernando, Hytasa, Cibeles, San Antón
-
-// Paradas intermedias entre cada par de checkpoints (en orden de ruta, por ID de BD)
 const SEGMENTS = [
-    { between: [3, 4, 5, 6, 7]                },  // San Fernando → Hytasa
-    { between: [9, 10, 11, 12, 13, 14, 15, 16] }, // Hytasa → Cibeles
-    { between: [18, 19, 20, 21]                },  // Cibeles → San Antón
-    { between: [23, 24, 25, 26, 27, 1]         },  // San Antón → San Fernando (regreso)
+    { between: [3, 4, 5, 6, 7]                 },
+    { between: [9, 10, 11, 12, 13, 14, 15, 16]  },
+    { between: [18, 19, 20, 21]                 },
+    { between: [23, 24, 25, 26, 27, 1]          },
 ];
 
-// Horario: [San Fernando, Hytasa, Cibeles, San Antón]
 const SIM_TRIPS = [
     ["7:45",  "8:00",  "8:15",  "8:25" ],
     ["8:30",  "8:45",  "9:00",  "9:10" ],
@@ -338,72 +309,55 @@ const toMinSim = (t) => {
     return h * 60 + m;
 };
 
-// Construye la línea de tiempo completa del día con TODAS las paradas
+const interpolateSegment = (startMin, endMin, stopIds, events) => {
+    const n = stopIds.length;
+    const duration = endMin - startMin;
+    for (let i = 0; i < n; i++) {
+        events.push({ stopId: stopIds[i], timeMin: startMin + duration * (i + 1) / (n + 1) });
+    }
+};
+
 const buildDayTimeline = () => {
     const events = [];
-
     for (let t = 0; t < SIM_TRIPS.length; t++) {
         const trip = SIM_TRIPS[t];
-
         for (let c = 0; c < CHECKPOINT_IDS.length; c++) {
             if (!trip[c]) continue;
             const timeMin = toMinSim(trip[c]);
-
-            // Evento del propio checkpoint
             events.push({ stopId: CHECKPOINT_IDS[c], timeMin });
-
-            // Interpolación de paradas intermedias hacia el siguiente checkpoint
             const nextTime = trip[c + 1] ?? null;
             if (nextTime !== null) {
-                const nextMin = toMinSim(nextTime);
-                const { between } = SEGMENTS[c];
-                const n = between.length;
-                const duration = nextMin - timeMin;
-                for (let i = 0; i < n; i++) {
-                    events.push({
-                        stopId: between[i],
-                        timeMin: timeMin + duration * (i + 1) / (n + 1)
-                    });
-                }
+                interpolateSegment(timeMin, toMinSim(nextTime), SEGMENTS[c].between, events);
             }
         }
-
-        // Regreso al inicio entre el fin de este viaje y el comienzo del siguiente
         const nextTrip = SIM_TRIPS[t + 1];
         if (nextTrip) {
-            const lastCheckpoint = trip.filter(Boolean).slice(-1)[0];
-            const lastMin  = toMinSim(lastCheckpoint);
+            const lastMin  = toMinSim(trip.filter(Boolean).slice(-1)[0]);
             const nextStart = toMinSim(nextTrip[0]);
-            const { between } = SEGMENTS[3]; // San Antón → San Fernando
-            const n = between.length;
-            const duration = nextStart - lastMin;
-            for (let i = 0; i < n; i++) {
-                events.push({
-                    stopId: between[i],
-                    timeMin: lastMin + duration * (i + 1) / (n + 1)
-                });
-            }
+            interpolateSegment(lastMin, nextStart, SEGMENTS[3].between, events);
         }
     }
-
     return events.sort((a, b) => a.timeMin - b.timeMin);
 };
 
 const DAY_TIMELINE = buildDayTimeline();
 console.log(`📅 Timeline: ${DAY_TIMELINE.length} eventos programados`);
 
-const getNextSimEvent = () => {
-    const now = new Date();
-    const nowDecMin = now.getHours() * 60 + now.getMinutes()
-                      + (now.getSeconds() * 1000 + now.getMilliseconds()) / 60_000;
-
-    const next = DAY_TIMELINE.find(e => e.timeMin > nowDecMin && e.timeMin > simMinTimeMin);
+const getNextSimEvent = (now) => {
+    const next = DAY_TIMELINE.find(e => e.timeMin > now && e.timeMin > simMinTimeMin);
     if (!next) return null;
+    return { stopId: next.stopId, eta: Math.round((next.timeMin - now) * 60_000) };
+};
 
-    return {
-        stopId: next.stopId,
-        eta: Math.round((next.timeMin - nowDecMin) * 60_000)
-    };
+const getCurrentBusState = (now) => {
+    const nextIdx = DAY_TIMELINE.findIndex(e => e.timeMin > now && e.timeMin > simMinTimeMin);
+    if (nextIdx === -1) return null;
+    const next = DAY_TIMELINE[nextIdx];
+    const eta  = Math.round((next.timeMin - now) * 60_000);
+    const prev = nextIdx > 0 ? DAY_TIMELINE[nextIdx - 1] : null;
+    if (!prev || prev.timeMin > now) return { stopId: next.stopId, eta };
+    const progress = (now - prev.timeMin) / (next.timeMin - prev.timeMin);
+    return { stopId: next.stopId, eta, fromStopId: prev.stopId, progress: Math.max(0, Math.min(1, progress)) };
 };
 
 const minsToTime = (mins) => {
@@ -412,42 +366,65 @@ const minsToTime = (mins) => {
     return `${h}:${m.toString().padStart(2, '0')}`;
 };
 
-// Devuelve el índice del viaje más cercano en el tiempo para un checkpoint dado (±90 min)
-const findActiveTripForCheckpoint = (checkpointIdx) => {
-    const now = new Date();
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    let bestTrip = -1;
-    let bestDiff = Infinity;
+const findActiveTripForCheckpoint = (checkpointIdx, nowMin) => {
+    let bestTrip = -1, bestDiff = Infinity;
     for (let t = 0; t < SIM_TRIPS.length; t++) {
         const tripTime = toMinSim(SIM_TRIPS[t][checkpointIdx]);
         if (tripTime === null) continue;
         const diff = Math.abs(tripTime - nowMin);
-        if (diff < bestDiff && diff <= 90) {
-            bestDiff = diff;
-            bestTrip = t;
-        }
+        if (diff < bestDiff && diff <= 90) { bestDiff = diff; bestTrip = t; }
     }
     return bestTrip;
 };
 
-const emitSimState = () => {
-    const event = getNextSimEvent();
-    if (event) {
-        io.emit('busUpdate', event);
-        console.log(`🕐 Sim → parada ${event.stopId}, ETA ${Math.round(event.eta / 60000)}min`);
+const emitSimState = async () => {
+    const now = nowDecMinutes();
+    const event = getNextSimEvent(now);
+    if (!event) return;
+    io.emit('busUpdate', event);
+    console.log(`🕐 Sim → parada ${event.stopId}, ETA ${Math.round(event.eta / 60000)}min`);
+
+    if (lastProcessedIdx === null) {
+        lastProcessedIdx = -1;
+        for (let i = 0; i < DAY_TIMELINE.length; i++) {
+            if (DAY_TIMELINE[i].timeMin > now) break;
+            lastProcessedIdx = i;
+        }
+        return;
     }
+
+    const newlyPassed = [];
+    let i = lastProcessedIdx + 1;
+    while (i < DAY_TIMELINE.length && DAY_TIMELINE[i].timeMin <= now) {
+        if (DAY_TIMELINE[i].timeMin > simMinTimeMin) newlyPassed.push(DAY_TIMELINE[i]);
+        lastProcessedIdx = i++;
+    }
+    if (newlyPassed.length === 0) return;
+
+    try {
+        const ids = [...new Set(newlyPassed.map(e => e.stopId))];
+        const stops = await Stop.find({ id: { $in: ids } }, 'id nombre -_id');
+        const nameMap = Object.fromEntries(stops.map(s => [s.id, s.nombre]));
+        newlyPassed.forEach((passed, i) => {
+            io.emit('adminLog', {
+                id: Date.now() + i,
+                time: new Date().toLocaleTimeString(),
+                event: `Bus en ${nameMap[passed.stopId] || `Parada ${passed.stopId}`}`,
+                user: "Simulador",
+                type: "info"
+            });
+        });
+    } catch {}
 };
 
 emitSimState();
 setInterval(emitSimState, 30_000);
-// ─────────────────────────────────────────────────────────────────────────────
 
 io.on('connection', (socket) => {
     console.log(`🔌 Conectado: ${socket.id} (rol: ${socket.user?.role || 'public'})`);
 
-    // Enviar estado actual al cliente recién conectado
-    const simEvent = getNextSimEvent();
-    if (simEvent) socket.emit('busUpdate', simEvent);
+    const busState = getCurrentBusState(nowDecMinutes());
+    if (busState) socket.emit('busUpdate', busState);
     if (liveTrip) socket.emit('scheduleAdjust', liveTrip);
 
     socket.on('driverJoin', () => {
@@ -456,24 +433,21 @@ io.on('connection', (socket) => {
     });
 
     socket.on('driverUpdate', (data) => {
+        if (!data || typeof data !== 'object') return;
         io.emit('busUpdate', data);
 
         const checkpointIdx = CHECKPOINT_IDS.indexOf(Number(data.stopId));
         if (checkpointIdx !== -1) {
-            const now = new Date();
-            const nowMin = now.getHours() * 60 + now.getMinutes();
-            const tripIdx = findActiveTripForCheckpoint(checkpointIdx);
-
+            const nowMin = Math.floor(nowDecMinutes());
+            const tripIdx = findActiveTripForCheckpoint(checkpointIdx, nowMin);
             if (tripIdx !== -1) {
                 const theoreticalMin = toMinSim(SIM_TRIPS[tripIdx][checkpointIdx]);
                 const delayMin = Math.round(nowMin - theoreticalMin);
-
                 const adjustedTimes = SIM_TRIPS[tripIdx].map((t, i) => {
                     if (t === null) return null;
                     if (i <= checkpointIdx) return t;
                     return minsToTime(toMinSim(t) + delayMin);
                 });
-
                 liveTrip = { tripIndex: tripIdx, adjustedTimes, delayMin, checkpointIdx };
                 simMinTimeMin = theoreticalMin;
                 io.emit('scheduleAdjust', liveTrip);
@@ -481,17 +455,15 @@ io.on('connection', (socket) => {
             }
         }
 
-        const newLog = {
+        io.emit('adminLog', {
             id: Date.now(),
             time: new Date().toLocaleTimeString(),
             event: `Llegada a ${sanitize(data.stopName) || 'Parada Desconocida'}`,
             user: "Conductor",
             type: "info"
-        };
-        io.emit('adminLog', newLog);
+        });
     });
 
-    // Solo admins pueden publicar alertas — confirma con ack al emisor
     socket.on('adminMessage', (data, callback) => {
         if (socket.user?.role !== 'admin') {
             if (typeof callback === 'function') callback({ success: false });
@@ -510,15 +482,13 @@ io.on('connection', (socket) => {
         if (!messageData || typeof messageData !== 'object') return;
         const text = typeof messageData.text === 'string' ? messageData.text.trim() : '';
         if (!text || text.length > 500) return;
-
-        const messageWithTime = {
+        io.emit('receiveChatMessage', {
             ...messageData,
             text: sanitize(text),
             sender: sanitize(messageData.sender),
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             id: Date.now()
-        };
-        io.emit('receiveChatMessage', messageWithTime);
+        });
     });
 
     socket.on('disconnect', () => {
@@ -530,6 +500,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`));

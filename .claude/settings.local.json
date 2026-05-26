@@ -3,7 +3,11 @@
     "allow": [
       "Bash(Get-ChildItem -Path \"c:\\\\C.E.I_Manuel_Alcantara\\\\PROYECTO\\\\PELICAN-TRACKER\" -Force)",
       "Bash(Select-Object Name, PSIsContainer)",
-      "Bash(Format-Table -AutoSize)"
+      "Bash(Format-Table -AutoSize)",
+      "Bash(git config *)",
+      "PowerShell(cmdkey /delete:\"LegacyGeneric:target=git:https://github.com\")",
+      "PowerShell(cmdkey /delete:\"LegacyGeneric:target=gh:github.com:\")",
+      "PowerShell(cmdkey /delete:\"LegacyGeneric:target=gh:github.com:AlcantaraNurdoc\")"
     ]
   }
 }

@@ -13,6 +13,7 @@ export const MapView = memo(({ darkMode, activeStopId }) => {
         <MapContainer
             center={position}
             zoom={14}
+            minZoom={13}
             style={{ height: '100%', width: '100%' }}
             zoomControl={false}
             className="relative"

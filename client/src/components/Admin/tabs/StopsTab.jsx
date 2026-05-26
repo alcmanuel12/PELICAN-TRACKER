@@ -17,6 +17,8 @@ export const StopsTab = () => {
     const [editError, setEditError] = useState('');
     const [editLoading, setEditLoading] = useState(false);
 
+    const [deleteError, setDeleteError] = useState('');
+
     const handleCreate = async (e) => {
         e.preventDefault();
         const lat = parseFloat(form.lat);
@@ -33,8 +35,11 @@ export const StopsTab = () => {
             const data = await res.json();
             if (res.ok) { setForm(EMPTY_FORM); refreshStops(); }
             else setFormError(data.message || 'Error al crear parada');
-        } catch { setFormError('Error de conexión'); }
-        setFormLoading(false);
+        } catch {
+            setFormError('Error de conexión');
+        } finally {
+            setFormLoading(false);
+        }
     };
 
     const openEdit = (stop) => {
@@ -60,22 +65,32 @@ export const StopsTab = () => {
             const data = await res.json();
             if (res.ok) { cancelEdit(); refreshStops(); }
             else setEditError(data.message || 'Error al actualizar');
-        } catch { setEditError('Error de conexión'); }
-        setEditLoading(false);
+        } catch {
+            setEditError('Error de conexión');
+        } finally {
+            setEditLoading(false);
+        }
     };
 
     const handleDelete = async (id, nombre) => {
         if (!confirm(`¿Eliminar la parada "${nombre}" permanentemente?`)) return;
+        setDeleteError('');
         try {
-            await api.delete(`/api/admin/stops/${id}`);
-            refreshStops();
-        } catch { /* silent */ }
+            const res = await api.delete(`/api/admin/stops/${id}`);
+            if (!res.ok) {
+                const data = await res.json();
+                setDeleteError(data.message || 'Error al eliminar la parada');
+            } else {
+                refreshStops();
+            }
+        } catch {
+            setDeleteError('Error de conexión al eliminar');
+        }
     };
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-300">
 
-            {/* Formulario nueva parada */}
             <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 shadow-lg">
                 <h2 className="text-lg font-bold mb-5 flex items-center gap-2 text-slate-200">
                     <Plus size={20} className="text-blue-400" /> Nueva Parada
@@ -133,7 +148,6 @@ export const StopsTab = () => {
                 </form>
             </div>
 
-            {/* Lista de paradas */}
             <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
                 <div className="p-5 border-b border-slate-700 flex items-center justify-between">
                     <h2 className="text-lg font-bold flex items-center gap-2 text-slate-200">
@@ -141,6 +155,11 @@ export const StopsTab = () => {
                     </h2>
                     <span className="text-xs text-slate-500">{stops.length} paradas</span>
                 </div>
+                {deleteError && (
+                    <p className="mx-5 mt-3 text-red-400 text-sm bg-red-900/20 border border-red-800 rounded-lg px-4 py-2">
+                        {deleteError}
+                    </p>
+                )}
 
                 <div className="divide-y divide-slate-700/50 max-h-[520px] overflow-y-auto">
                     {loading ? (

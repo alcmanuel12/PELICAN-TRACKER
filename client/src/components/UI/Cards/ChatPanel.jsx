@@ -21,10 +21,11 @@ export const ChatPanel = ({ userName = "Central", role = "admin" }) => {
         return () => newSocket.disconnect();
     }, []);
 
-    // Bajar el scroll automáticamente cuando llega un mensaje
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isOpen]);
+
+    const MAX_CHARS = 500;
 
     const handleSend = (e) => {
         e.preventDefault();
@@ -67,7 +68,6 @@ export const ChatPanel = ({ userName = "Central", role = "admin" }) => {
                         )}
                         
                         {messages.map((msg) => {
-                            // Detectamos si el mensaje lo envié yo o la otra persona
                             const isMe = msg.sender === userName;
                             
                             return (
@@ -89,21 +89,28 @@ export const ChatPanel = ({ userName = "Central", role = "admin" }) => {
                     </div>
 
                     {/* Input de envío */}
-                    <form onSubmit={handleSend} className="p-3 bg-white border-t border-slate-100 flex gap-2">
-                        <input
-                            type="text"
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            placeholder="Mensaje a la flota..."
-                            className="flex-1 bg-slate-100 rounded-full px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700"
-                        />
-                        <button 
-                            type="submit"
-                            disabled={!newMessage.trim()}
-                            className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center shadow-md active:scale-95"
-                        >
-                            <Send size={18} className="ml-0.5" />
-                        </button>
+                    <form onSubmit={handleSend} className="p-3 bg-white border-t border-slate-100 flex flex-col gap-1.5">
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={newMessage}
+                                onChange={(e) => setNewMessage(e.target.value.slice(0, MAX_CHARS))}
+                                placeholder="Mensaje a la flota..."
+                                className="flex-1 bg-slate-100 rounded-full px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700"
+                            />
+                            <button
+                                type="submit"
+                                disabled={!newMessage.trim()}
+                                className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center shadow-md active:scale-95"
+                            >
+                                <Send size={18} className="ml-0.5" />
+                            </button>
+                        </div>
+                        {newMessage.length > 0 && (
+                            <p className={`text-right text-[10px] pr-1 ${newMessage.length >= MAX_CHARS ? 'text-red-400 font-semibold' : 'text-slate-400'}`}>
+                                {newMessage.length}/{MAX_CHARS}
+                            </p>
+                        )}
                     </form>
                 </div>
             )}

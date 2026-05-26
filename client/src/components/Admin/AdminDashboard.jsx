@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Users, Bell, Activity, LogOut, LayoutDashboard, MapPin } from 'lucide-react';
 import io from 'socket.io-client';
 import { ChatPanel } from "../UI/Cards/ChatPanel";
@@ -14,9 +14,6 @@ export const AdminDashboard = ({ user, onLogout }) => {
     const [logs, setLogs] = useState([]);
     const [driverCount, setDriverCount] = useState(0);
 
-    const serviceStartRef = useRef(null);
-    const [, setTick] = useState(0);
-
     const [alertMsg, setAlertMsg] = useState("");
     const [alertType, setAlertType] = useState('info');
     const [isSending, setIsSending] = useState(false);
@@ -25,52 +22,38 @@ export const AdminDashboard = ({ user, onLogout }) => {
     const [userForm, setUserForm] = useState({ username: '', password: '', name: '', role: 'driver' });
     const [userFormError, setUserFormError] = useState('');
     const [userFormLoading, setUserFormLoading] = useState(false);
+    const [usersLoading, setUsersLoading] = useState(false);
 
     const socketRef = useRef();
 
     useEffect(() => {
         socketRef.current = io(API_URL, { withCredentials: true });
-
         socketRef.current.on('driverCountUpdate', (count) => setDriverCount(count));
         socketRef.current.on('adminLog', (newLog) => {
             setLogs((prev) => [newLog, ...prev].slice(0, 100));
         });
-
         return () => socketRef.current.disconnect();
     }, []);
 
-    useEffect(() => {
-        if (logs.length > 0 && !serviceStartRef.current) serviceStartRef.current = Date.now();
-    }, [logs]);
+    const lastStop = logs[0] ? logs[0].event.replace(/^(?:Llegada a|Bus en)\s+/, '') : 'Sin datos';
 
-    useEffect(() => {
-        const interval = setInterval(() => setTick(t => t + 1), 30000);
-        return () => clearInterval(interval);
-    }, []);
-
-    const getElapsedTime = () => {
-        if (!serviceStartRef.current) return '--:--';
-        const ms = Date.now() - serviceStartRef.current;
-        const h = Math.floor(ms / 3600000);
-        const m = Math.floor((ms % 3600000) / 60000);
-        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} h`;
-    };
-
-    const lastStop = logs[0] ? logs[0].event.replace('Llegada a ', '') : 'Sin datos';
-
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
+        setUsersLoading(true);
         try {
             const res = await api.get('/api/admin/users');
             if (!res.ok) throw new Error('Error obteniendo usuarios');
             setUsersList(await res.json());
         } catch (e) {
             setUserFormError('Error cargando usuarios: ' + e.message);
+        } finally {
+            setUsersLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         if (activeTab === 'users') fetchUsers();
-    }, [activeTab]);
+        setUserFormError('');
+    }, [activeTab, fetchUsers]);
 
     const handleCreateUser = async (e) => {
         e.preventDefault();
@@ -87,15 +70,21 @@ export const AdminDashboard = ({ user, onLogout }) => {
             }
         } catch {
             setUserFormError('Error de conexión');
+        } finally {
+            setUserFormLoading(false);
         }
-        setUserFormLoading(false);
     };
 
     const handleDeleteUser = async (id) => {
         if (!confirm('¿Eliminar este usuario permanentemente?')) return;
         try {
-            await api.delete(`/api/admin/users/${id}`);
-            fetchUsers();
+            const res = await api.delete(`/api/admin/users/${id}`);
+            if (!res.ok) {
+                const data = await res.json();
+                setUserFormError(data.message || 'Error al eliminar usuario');
+            } else {
+                fetchUsers();
+            }
         } catch {
             setUserFormError('Error al eliminar usuario');
         }
@@ -112,7 +101,6 @@ export const AdminDashboard = ({ user, onLogout }) => {
         }
     };
 
-    // Usa ack de Socket.IO — el servidor confirma antes de marcar como enviado
     const handleSendAlert = () => {
         if (!alertMsg.trim()) return;
         setIsSending(true);
@@ -129,7 +117,7 @@ export const AdminDashboard = ({ user, onLogout }) => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col relative overflow-hidden">
+        <div className="h-screen bg-slate-900 text-slate-100 font-sans flex flex-col relative overflow-hidden">
 
             <header className="bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center sticky top-0 z-50">
                 <div className="flex items-center gap-3">
@@ -158,7 +146,7 @@ export const AdminDashboard = ({ user, onLogout }) => {
 
             <main className="flex-1 p-6 overflow-y-auto">
                 {activeTab === 'dashboard' && (
-                    <DashboardTab logs={logs} driverCount={driverCount} getElapsedTime={getElapsedTime} lastStop={lastStop} />
+                    <DashboardTab logs={logs} driverCount={driverCount} lastStop={lastStop} />
                 )}
                 {activeTab === 'alerts' && (
                     <AlertsTab
@@ -172,6 +160,7 @@ export const AdminDashboard = ({ user, onLogout }) => {
                 {activeTab === 'users' && (
                     <UsersTab
                         usersList={usersList}
+                        usersLoading={usersLoading}
                         userForm={userForm} setUserForm={setUserForm}
                         userFormError={userFormError}
                         userFormLoading={userFormLoading}

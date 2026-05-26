@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { UserPlus, ShieldCheck, KeyRound, User, Trash2, Users, Check, X } from 'lucide-react';
+import { UserPlus, ShieldCheck, KeyRound, User, Trash2, Users, Check, X, Loader2 } from 'lucide-react';
 
-export const UsersTab = ({ usersList, userForm, setUserForm, userFormError, userFormLoading, handleCreateUser, handleDeleteUser, handleResetPassword }) => {
+export const UsersTab = ({ usersList, usersLoading, userForm, setUserForm, userFormError, userFormLoading, handleCreateUser, handleDeleteUser, handleResetPassword }) => {
     const [expandedPwdId, setExpandedPwdId] = useState(null);
     const [newPwd, setNewPwd] = useState('');
     const [pwdError, setPwdError] = useState('');
@@ -105,8 +105,12 @@ export const UsersTab = ({ usersList, userForm, setUserForm, userFormError, user
                     </h2>
                 </div>
                 <div className="divide-y divide-slate-700/50 max-h-[480px] overflow-y-auto">
-                    {usersList.length === 0 ? (
-                        <p className="p-6 text-center text-slate-500">Cargando...</p>
+                    {usersLoading ? (
+                        <div className="flex justify-center items-center p-8">
+                            <Loader2 size={24} className="animate-spin text-blue-400" />
+                        </div>
+                    ) : usersList.length === 0 ? (
+                        <p className="p-6 text-center text-slate-500">No hay usuarios registrados.</p>
                     ) : (
                         usersList.map(u => (
                             <div key={u._id}>

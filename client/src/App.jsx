@@ -4,6 +4,8 @@ import Home from "./components/Home";
 import { LoginView } from './components/Driver/LoginView';
 import { DriverView } from './components/Driver/DriverView';
 import { AdminDashboard } from './components/Admin/AdminDashboard';
+import { NotFound } from './components/NotFound';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { StopsProvider } from './context/StopsContext';
 import { api } from './utils/api';
 
@@ -46,6 +48,7 @@ function App() {
   if (loading) return <div className="min-h-screen bg-slate-900" />;
 
   return (
+    <ErrorBoundary>
     <StopsProvider>
       <BrowserRouter>
         <Routes>
@@ -77,10 +80,11 @@ function App() {
             }
           />
 
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </StopsProvider>
+    </ErrorBoundary>
   );
 }
 

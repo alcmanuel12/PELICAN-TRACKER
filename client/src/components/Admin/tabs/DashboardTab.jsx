@@ -1,4 +1,4 @@
-import { Users, Clock, MapPin, AlertTriangle } from 'lucide-react';
+import { Users, MapPin } from 'lucide-react';
 
 const StatCard = ({ icon, title, value, color }) => (
     <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow flex items-center gap-4">
@@ -10,13 +10,11 @@ const StatCard = ({ icon, title, value, color }) => (
     </div>
 );
 
-export const DashboardTab = ({ logs, driverCount, getElapsedTime, lastStop }) => (
+export const DashboardTab = ({ logs, driverCount, lastStop }) => (
     <div className="space-y-6 animate-in fade-in duration-300">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <StatCard icon={<Users />}         title="Conductores"          value={`${driverCount} Activo${driverCount !== 1 ? 's' : ''}`} color="bg-blue-600" />
-            <StatCard icon={<MapPin />}         title="Última parada"        value={lastStop}                                               color="bg-emerald-600" />
-            <StatCard icon={<Clock />}          title="Tiempo servicio"      value={getElapsedTime()}                                       color="bg-purple-600" />
-            <StatCard icon={<AlertTriangle />}  title="Paradas completadas"  value={`${logs.length}`}                                       color="bg-amber-600" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <StatCard icon={<Users />}  title="Conductores"   value={`${driverCount} Activo${driverCount !== 1 ? 's' : ''}`} color="bg-blue-600" />
+            <StatCard icon={<MapPin />} title="Última parada" value={lastStop}                                               color="bg-emerald-600" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
