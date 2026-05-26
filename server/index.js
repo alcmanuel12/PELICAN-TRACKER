@@ -1,5 +1,6 @@
 require('dotenv').config();
 
+const path = require('path');
 const express = require('express');
 const helmet = require('helmet');
 const mongoose = require('mongoose');
@@ -27,6 +28,9 @@ app.use(cors({ origin: CORS_ORIGIN, methods: ["GET", "POST", "DELETE", "PATCH"],
 app.use(express.json({ limit: '10kb' }));
 app.use(cookieParser());
 
+// Sirve los archivos estáticos del frontend compilado (React/Vite)
+app.use(express.static(path.join(__dirname, '../client/dist')));
+
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 10,
@@ -51,8 +55,6 @@ mongoose.connect(process.env.MONGO_URI)
         }
     })
     .catch(err => console.error("🔴 Error conectando a MongoDB:", err));
-
-app.get('/', (_req, res) => res.send('Servidor PelicanTracker funcionando 🦅'));
 
 app.get('/api/me', (req, res) => {
     const token = req.cookies?.pelicanToken;
@@ -498,6 +500,12 @@ io.on('connection', (socket) => {
         }
     });
 });
+
+// Ruta comodín: devuelve index.html para que React Router maneje /login, /map, etc.
+// DEBE ir después de todas las rutas /api y del middleware express.static.
+app.get('/{*path}', (_req, res) =>
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'))
+);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`));

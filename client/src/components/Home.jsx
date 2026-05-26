@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import { API_URL } from '../utils/api';
 import { Settings, MapPin, X, Clock } from 'lucide-react';
 
 import { MapView } from './Map/MapView';
@@ -34,7 +33,8 @@ export const Home = () => {
   };
 
   useEffect(() => {
-    const socket = io(API_URL, { withCredentials: true });
+    // Sin URL: Socket.IO se conecta al mismo origen que sirve la página
+    const socket = io({ withCredentials: true });
 
     socket.on('broadcastAlert', (data) => {
         setGlobalAlert(data);

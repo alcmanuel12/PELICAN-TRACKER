@@ -5,8 +5,11 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test test/**/*.test.js",
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "start:all": "concurrently \"npm run server --prefix server\" \"npm run dev --prefix client\"",
-    "install:all": "npm install && npm install --prefix client && npm install --prefix server"
+    "install:all": "npm install && npm install --prefix client && npm install --prefix server",
+    "build": "npm install --prefix client && npm run build --prefix client && npm install --prefix server",
+    "start": "node server/index.js"
   },
   "keywords": [],
   "author": "",

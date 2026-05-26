@@ -3,7 +3,6 @@ import io from 'socket.io-client';
 import { MapPin, Navigation, LogOut, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { ChatPanel } from "../UI/Cards/ChatPanel";
 import { useStops } from '../../context/StopsContext';
-import { API_URL } from '../../utils/api';
 
 const STATUS = {
     connecting:   { label: 'Conectando...',          color: 'text-slate-400',  icon: Loader2,  spin: true  },
@@ -21,7 +20,8 @@ export const DriverView = ({ onLogout }) => {
     const { checkpoints, loading: loadingStops, error: stopsError } = useStops();
 
     useEffect(() => {
-        const newSocket = io(API_URL, { withCredentials: true });
+        // Sin URL: Socket.IO se conecta al mismo origen que sirve la página
+        const newSocket = io({ withCredentials: true });
         setSocket(newSocket);
 
         newSocket.on('connect', () => {
