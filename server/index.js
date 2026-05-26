@@ -23,7 +23,25 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 const app = express();
 const server = http.createServer(app);
 
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc:  ["'self'"],
+            scriptSrc:   ["'self'"],
+            styleSrc:    ["'self'", "https:", "'unsafe-inline'"],
+            fontSrc:     ["'self'", "https:", "data:"],
+            imgSrc:      ["'self'", "data:", "https://*.cartocdn.com", "https://res.cloudinary.com"],
+            connectSrc:  ["'self'", "wss:", "ws:", "https:"],
+            workerSrc:   ["'self'", "blob:"],
+            objectSrc:   ["'none'"],
+            baseUri:     ["'self'"],
+            formAction:  ["'self'"],
+            frameAncestors: ["'self'"],
+            upgradeInsecureRequests: [],
+        }
+    }
+}));
 app.use(cors({ origin: CORS_ORIGIN, methods: ["GET", "POST", "DELETE", "PATCH"], credentials: true }));
 app.use(express.json({ limit: '10kb' }));
 app.use(cookieParser());
