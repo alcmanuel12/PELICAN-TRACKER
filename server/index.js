@@ -286,6 +286,7 @@ io.use((socket, next) => {
 let connectedDrivers = new Set();
 let liveTrip = null;
 let simMinTimeMin = -Infinity;
+let simTimeOffset = 0;        // desplazamiento acumulado para bucle 24h
 let lastProcessedIdx = null;
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -294,6 +295,9 @@ const nowDecMinutes = () => {
     const n = new Date();
     return n.getHours() * 60 + n.getMinutes() + (n.getSeconds() * 1000 + n.getMilliseconds()) / 60_000;
 };
+
+// Tiempo virtual de simulación (se reinicia al completar el horario)
+const getSimNow = () => nowDecMinutes() - simTimeOffset;
 
 const persistBusState = async () => {
     try {
@@ -400,17 +404,34 @@ const findActiveTripForCheckpoint = (checkpointIdx, nowMin) => {
     return bestTrip;
 };
 
+const resetSimLoop = () => {
+    // Reinicia el bucle: desplaza el tiempo virtual para que empiece justo antes del primer evento
+    simTimeOffset = nowDecMinutes() - (DAY_TIMELINE[0].timeMin - 0.5);
+    simMinTimeMin = -Infinity;
+    liveTrip      = null;
+    lastProcessedIdx = null;
+    console.log('🔄 Simulación: horario completado, reiniciando bucle...');
+};
+
 const emitSimState = async () => {
-    const now = nowDecMinutes();
-    const event = getNextSimEvent(now);
-    if (!event) return;
+    let simNow = getSimNow();
+    let event  = getNextSimEvent(simNow);
+
+    if (!event) {
+        // Fin del horario → reiniciar y emitir el primer evento del nuevo ciclo
+        resetSimLoop();
+        simNow = getSimNow();
+        event  = getNextSimEvent(simNow);
+        if (!event) return;
+    }
+
     io.emit('busUpdate', event);
     console.log(`🕐 Sim → parada ${event.stopId}, ETA ${Math.round(event.eta / 60000)}min`);
 
     if (lastProcessedIdx === null) {
         lastProcessedIdx = -1;
         for (let i = 0; i < DAY_TIMELINE.length; i++) {
-            if (DAY_TIMELINE[i].timeMin > now) break;
+            if (DAY_TIMELINE[i].timeMin > simNow) break;
             lastProcessedIdx = i;
         }
         return;
@@ -418,7 +439,7 @@ const emitSimState = async () => {
 
     const newlyPassed = [];
     let i = lastProcessedIdx + 1;
-    while (i < DAY_TIMELINE.length && DAY_TIMELINE[i].timeMin <= now) {
+    while (i < DAY_TIMELINE.length && DAY_TIMELINE[i].timeMin <= simNow) {
         if (DAY_TIMELINE[i].timeMin > simMinTimeMin) newlyPassed.push(DAY_TIMELINE[i]);
         lastProcessedIdx = i++;
     }
@@ -446,7 +467,7 @@ setInterval(emitSimState, 30_000);
 io.on('connection', (socket) => {
     console.log(`🔌 Conectado: ${socket.id} (rol: ${socket.user?.role || 'public'})`);
 
-    const busState = getCurrentBusState(nowDecMinutes());
+    const busState = getCurrentBusState(getSimNow());
     if (busState) socket.emit('busUpdate', busState);
     if (liveTrip) socket.emit('scheduleAdjust', liveTrip);
 
