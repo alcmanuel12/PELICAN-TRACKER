@@ -18,7 +18,10 @@ const { createToken, verifyToken, requireAdmin } = require('./utils/auth');
 const { sanitize } = require('./utils/sanitize');
 const { CHECKPOINT_IDS, VALID_ROLES } = require('./data/constants');
 
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
+// En desarrollo: CORS_ORIGIN=http://localhost:5173 (por defecto abajo)
+// En producción mismo servicio (Render): origin:true refleja el Origin del cliente → funciona sin env var
+// En producción servicios separados: CORS_ORIGIN=https://tu-cliente.onrender.com
+const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
 
 const app = express();
 const server = http.createServer(app);
