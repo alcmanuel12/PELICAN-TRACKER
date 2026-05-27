@@ -201,6 +201,21 @@ app.delete('/api/admin/stops/:id', requireAdmin, async (req, res) => {
     }
 });
 
+// ── Avisos globales vía HTTP (más fiable que socket para auth de admin) ──────
+app.post('/api/admin/alert', requireAdmin, (req, res) => {
+    const { msg, type } = req.body;
+    if (!msg || typeof msg !== 'string' || !msg.trim())
+        return res.status(400).json({ message: 'El mensaje no puede estar vacío' });
+    const safeType = type === 'warning' ? 'warning' : 'info';
+    io.emit('broadcastAlert', { msg: sanitize(msg.trim()), type: safeType });
+    res.json({ success: true });
+});
+
+app.post('/api/admin/alert/clear', requireAdmin, (_req, res) => {
+    io.emit('broadcastClearAlert');
+    res.json({ success: true });
+});
+
 app.patch('/api/admin/users/:id', requireAdmin, async (req, res) => {
     const { name, role, password } = req.body;
     if (name !== undefined && (typeof name !== 'string' || name.length === 0 || name.length > 64))
@@ -511,9 +526,11 @@ io.on('connection', (socket) => {
         });
     });
 
+    // adminMessage vía socket (fallback; la ruta preferida es POST /api/admin/alert)
     socket.on('adminMessage', (data, callback) => {
         if (socket.user?.role !== 'admin') {
-            if (typeof callback === 'function') callback({ success: false });
+            console.warn(`[socket] adminMessage bloqueado: socket=${socket.id} rol=${socket.user?.role}`);
+            if (typeof callback === 'function') callback({ success: false, reason: `rol=${socket.user?.role}` });
             return;
         }
         io.emit('broadcastAlert', { msg: sanitize(data.msg), type: data.type });

@@ -101,18 +101,27 @@ export const AdminDashboard = ({ user, onLogout }) => {
         }
     };
 
-    const handleSendAlert = () => {
+    const handleSendAlert = async () => {
         if (!alertMsg.trim()) return;
         setIsSending(true);
-        socketRef.current.emit('adminMessage', { msg: alertMsg, type: alertType }, (ack) => {
-            if (ack?.success) setAlertMsg('');
+        try {
+            const res = await api.post('/api/admin/alert', { msg: alertMsg, type: alertType });
+            const data = await res.json();
+            if (data.success) setAlertMsg('');
+        } catch (e) {
+            console.error('[AdminDashboard] Error enviando aviso:', e);
+        } finally {
             setIsSending(false);
-        });
+        }
     };
 
-    const handleClearAlert = () => {
+    const handleClearAlert = async () => {
         if (confirm("¿Seguro que quieres retirar el aviso de todos los usuarios?")) {
-            socketRef.current.emit('adminClearAlert');
+            try {
+                await api.post('/api/admin/alert/clear', {});
+            } catch (e) {
+                console.error('[AdminDashboard] Error retirando aviso:', e);
+            }
         }
     };
 
