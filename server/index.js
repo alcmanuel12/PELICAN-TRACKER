@@ -89,7 +89,7 @@ app.get('/api/me', (req, res) => {
 });
 
 app.post('/api/logout', (_req, res) => {
-    res.clearCookie('pelicanToken', { sameSite: 'strict', secure: process.env.NODE_ENV === 'production' });
+    res.clearCookie('pelicanToken', { sameSite: 'strict', secure: process.env.NODE_ENV !== 'development' });
     res.json({ success: true });
 });
 
@@ -250,7 +250,9 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             res.cookie('pelicanToken', token, {
                 httpOnly: true,
                 sameSite: 'strict',
-                secure: process.env.NODE_ENV === 'production',
+                // Render siempre sirve HTTPS → secure:true siempre; en dev HTTP también funciona
+                // porque el navegador acepta cookies no-secure en localhost
+                secure: process.env.NODE_ENV !== 'development',
                 maxAge: 8 * 60 * 60 * 1000
             });
             res.json({ success: true, name: user.name, role: user.role });
@@ -277,10 +279,11 @@ io.use((socket, next) => {
     if (!token) { socket.user = { role: 'public' }; return next(); }
     try {
         socket.user = verifyToken(token);
-        next();
     } catch {
-        next(new Error('Invalid token'));
+        // Token inválido o expirado → tratar como público en vez de rechazar la conexión
+        socket.user = { role: 'public' };
     }
+    next();
 });
 
 let connectedDrivers = new Set();

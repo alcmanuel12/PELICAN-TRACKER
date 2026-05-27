@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: pelican-tracker
+    runtime: node
+    plan: free
+
+    # Render clona el repo en la raíz del proyecto
+    buildCommand: npm run build
+    startCommand: npm start
+
+    # Variables de entorno requeridas en producción
+    # ⚠️  JWT_SECRET y MONGO_URI se deben configurar manualmente en el dashboard de Render
+    #     (no los pongas aquí para no exponerlos en el repositorio)
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Las siguientes se definen como secretos en el dashboard:
+      # - key: JWT_SECRET
+      #   sync: false
+      # - key: MONGO_URI
+      #   sync: false
